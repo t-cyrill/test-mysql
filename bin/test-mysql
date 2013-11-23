@@ -1,0 +1,155 @@
+#!/usr/bin/env ruby
+# -*- coding: utf-8 -*-
+
+require 'yaml'
+require 'fileutils'
+
+if RUBY_VERSION < '1.9.3'
+  puts "Ruby 1.9.3以前のバージョンには対応していません。"
+  exit
+end
+
+$LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
+require 'test-mysql'
+require 'optparse'
+
+root_path = File.expand_path('../../', __FILE__)
+
+subparsers = Hash.new {|h,k|
+  $stderr.puts "no such subcommand: #{k}"
+  exit 1
+}
+
+options = Hash.new
+parser = OptionParser.new
+parser.on('--mysqld_root=VAL')    { |v| options[:mysqld_root] = v }
+parser.on('--init_sql_path=VAL')  { |v| options[:init_sql_path] = v }
+
+subparsers['help'] = OptionParser.new.on('') do
+  puts <<EOS
+usage:
+test-mysql.rbはテスト用mysqlプロセスを管理するスクリプトです。
+Ruby >= 1.9.3 が必要です。
+
+test-mysql
+シェルの中で起動する。Ctrl-Cで終了できる。
+
+test-mysql start
+デーモンとして起動する。stopで終了できる。
+
+test-mysql stop
+デーモンとして起動しているmysqldを終了する。
+
+test-mysql restart
+デーモンとして起動しているmysqldを再起動する。
+
+test-mysql reload
+init.sqlをリロードする
+
+test-mysql setup
+test_mysqlの初期セットアップを行う。
+startを実行する前にDBを初期化する必要があります。
+setupはDBの初期化を自動的に行います。
+またconfig/test_mysql.ymlに従ってmy.cnfを自動的に生成します。
+
+configuration:
+config/test_mysql.yml
+
+default configuration =>
+test_mysqld:
+  # mysqldへのパス
+  mysqld            : "/usr/sbin/mysqld"
+  # mysql_install_dbへのパス
+  mysql_install_db  : "/usr/bin/mysql_install_db"
+  # mysqlへのパス
+  mysql             : "/usr/bin/mysql"
+
+mysql:
+  # mysqlのソケットファイルの位置(setupで作成されるmy.cnf)
+  socket            : "/tmp/mysqld.sock"
+  # 初期化に使うsqlが書かれたファイルのパス
+  # init_sql          : ""
+
+EOS
+end
+
+subparsers['start'] = OptionParser.new.on('') do
+  manager = Manager.new(root_path, options)
+  result = manager.start
+  if result == 0
+    puts "mysqld started."
+  elsif result == -1
+    puts "mysql pid-file already exists."
+  end
+end
+
+subparsers['stop'] = OptionParser.new.on('') do
+  puts "stop called."
+  manager = Manager.new(root_path, options)
+  result = manager.stop
+
+  if result == 0
+    puts "stop call accepted."
+  else
+    puts "stop call failed.[" + result.to_s + "]"
+    puts "mysql pid-file not exists. ";
+  end
+end
+
+subparsers['restart'] = OptionParser.new.on('') do
+  manager = Manager.new(root_path, options)
+  result = manager.stop
+
+  if result == 0
+    puts "stop call accepted."
+  else
+    puts "stop call failed.[" + result.to_s + "]"
+    puts "mysql pid-file not exists. ";
+  end
+
+  manager.waitShutdown 10
+  result = manager.start
+  if result == 0
+    puts "mysqld started."
+  elsif result == -1
+    puts "mysql pid-file already exists."
+  end
+end
+
+subparsers['reload'] = OptionParser.new.on('') do
+  manager = Manager.new(root_path, options)
+  manager.reload
+  puts "init.sql reloaded."
+end
+
+subparsers['setup'] = OptionParser.new.on('') do
+  manager = Manager.new(root_path, options)
+  manager.setup
+  puts "user database and tmp/my.cnf are initialized."
+end
+
+parser.order!(ARGV)
+
+if ARGV.empty?
+  manager = Manager.new(root_path, options)
+  # list = `pgrep mysqld`
+  # if !list.empty?
+  #   puts "既にmysqldが起動しています。"
+  #   exit
+  # end
+
+  puts "mysql waiting mode"
+  mysql_pid = manager.start
+  exit if !mysql_pid
+
+  begin
+    begin
+      sleep(1)
+    end while true
+  rescue Interrupt
+    manager.stop
+    exit 1
+  end
+else
+  subparsers[ARGV.shift].parse!(ARGV)
+end

@@ -1,0 +1,15 @@
+test_mysqld:
+  # mysqldへのパス
+  mysqld            : "/usr/sbin/mysqld"
+  # mysql_install_dbへのパス
+  mysql_install_db  : "/usr/bin/mysql_install_db"
+  # mysqlへのパス
+  mysql             : "/usr/bin/mysql"
+
+mysql:
+  # mysqlのソケットファイルの位置(setupで作成されるmy.cnf)
+  socket            : "/tmp/[user]_mysql.sock"
+  # 初期化に使うsqlが書かれたファイルのパス
+  # init_sql          : ""
+
+
