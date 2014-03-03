@@ -20,6 +20,12 @@ startを実行する前にDBを初期化する必要があります。
 setupはDBの初期化を自動的に行います。
 またconfig/test_mysql.ymlに従ってmy.cnfを自動的に生成します。
 
+事前にtmpディレクトリの作成が必要です。
+
+```
+mkdir tmp
+```
+
 ## configuration
 ``` config/test_mysql.yml
 default configuration =>
