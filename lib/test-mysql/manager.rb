@@ -74,6 +74,8 @@ class Manager
   end
 
   def setup
+    tmp_dir = File::dirname(@my_cnf)
+    FileUtils::mkdir_p(tmp_dir) unless File::directory?(tmp_dir)
     open @my_cnf, "w+" do |f|
       f.puts <<"EOS"
 [client]
